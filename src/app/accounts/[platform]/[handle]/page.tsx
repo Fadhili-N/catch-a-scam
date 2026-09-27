@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase/client'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 import { formatMoney, formatDate, IDENTIFIER_LABELS } from '@/lib/format'
 import type { Account, Identifier, Report } from '@/lib/types'
 
@@ -8,7 +9,11 @@ export const revalidate = 30
 
 type ReportWithIdentifiers = Report & { identifiers: Identifier[] }
 
-async function getAccount(platform: string, handle: string): Promise<Account | null> {
+async function getAccount(
+  supabase: SupabaseClient,
+  platform: string,
+  handle: string
+): Promise<Account | null> {
   const { data, error } = await supabase
     .from('accounts')
     .select('*')
@@ -24,7 +29,10 @@ async function getAccount(platform: string, handle: string): Promise<Account | n
   return data
 }
 
-async function getApprovedReports(accountId: string): Promise<ReportWithIdentifiers[]> {
+async function getApprovedReports(
+  supabase: SupabaseClient,
+  accountId: string
+): Promise<ReportWithIdentifiers[]> {
   const { data, error } = await supabase
     .from('reports')
     .select('*, identifiers(*)')
@@ -46,7 +54,11 @@ async function getApprovedReports(accountId: string): Promise<ReportWithIdentifi
  * and account name change, but the till number collecting the money
  * usually doesn't.
  */
-async function getLinkedAccounts(normalizedValues: string[], excludeAccountId: string): Promise<Account[]> {
+async function getLinkedAccounts(
+  supabase: SupabaseClient,
+  normalizedValues: string[],
+  excludeAccountId: string
+): Promise<Account[]> {
   if (normalizedValues.length === 0) return []
 
   const { data, error } = await supabase
@@ -70,10 +82,10 @@ async function getLinkedAccounts(normalizedValues: string[], excludeAccountId: s
   return [...seen.values()]
 }
 
-function incrementViewCount(accountId: string) {
+function incrementViewCount(supabase: SupabaseClient, accountId: string) {
   // Fire-and-forget: a failed view count must never block the page from
   // rendering, so its error is logged rather than thrown.
-  supabase.rpc('increment_account_view_count', { account_id_in: accountId }).then(({ error }) => {
+  supabase.rpc('increment_account_view_count', { account_id_in: accountId }).then(({ error }: { error: { message: string } | null }) => {
     if (error) console.error('Failed to increment view count:', error.message)
   })
 }
@@ -84,15 +96,16 @@ export default async function AccountPage({
   params: Promise<{ platform: string; handle: string }>
 }) {
   const { platform, handle } = await params
-  const account = await getAccount(platform, handle)
+  const supabase = await createClient()
+  const account = await getAccount(supabase, platform, handle)
   if (!account) notFound()
 
-  incrementViewCount(account.id)
+  incrementViewCount(supabase, account.id)
 
-  const reports = await getApprovedReports(account.id)
+  const reports = await getApprovedReports(supabase, account.id)
   const totalLost = reports.reduce((sum, r) => sum + (r.amount_lost ?? 0), 0)
   const allIdentifierValues = [...new Set(reports.flatMap((r) => r.identifiers.map((i) => i.normalized_value)))]
-  const linkedAccounts = await getLinkedAccounts(allIdentifierValues, account.id)
+  const linkedAccounts = await getLinkedAccounts(supabase, allIdentifierValues, account.id)
 
   return (
     <div className="min-h-screen bg-zinc-50">

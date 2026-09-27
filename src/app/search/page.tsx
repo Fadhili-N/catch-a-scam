@@ -1,11 +1,12 @@
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 import type { Account } from '@/lib/types'
 
 async function searchAccounts(query: string): Promise<Account[]> {
   const trimmed = query.trim()
   if (!trimmed) return []
 
+  const supabase = await createClient()
   // Plain substring matching for v1. The pg_trgm index created in
   // 0001_init.sql is there for a fuzzier match (so "shoeplugke" still finds
   // "shoe.plug.ke") — worth upgrading to once this misses real searches.

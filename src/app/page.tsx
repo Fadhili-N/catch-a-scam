@@ -1,8 +1,5 @@
 import Link from 'next/link'
-// Reused from the browser client for now: an anonymous read needs no
-// cookies or session, so this works fine server-side too. A cookie-aware
-// server client arrives in Phase 3 once login exists.
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 import { formatMoney, formatDate } from '@/lib/format'
 import type { Account, Report } from '@/lib/types'
 
@@ -13,6 +10,7 @@ export const revalidate = 30
 type ReportWithAccount = Report & { accounts: Account }
 
 async function getRecentReports(): Promise<ReportWithAccount[]> {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('reports')
     .select('*, accounts(*)')
