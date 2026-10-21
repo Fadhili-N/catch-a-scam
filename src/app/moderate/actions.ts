@@ -29,6 +29,33 @@ import { getProfile, isModerator } from '@/lib/auth'
  * row back and throws if RLS left it with none.
  */
 
+/**
+ * Asks the Python image-matching service (services/image-matching) to
+ * hash this report's evidence and check it against everything else
+ * already reported. Best-effort: approval has already fully succeeded by
+ * the time this runs, so a down or slow image service should never make
+ * the moderator's "Approve" click look like it failed. A 10s timeout
+ * guards against a hung request blocking the response — this is a plain
+ * fetch, not a true background job, which matters on a serverless host:
+ * an un-awaited promise can be killed the instant the response is sent,
+ * so "fire and forget" would risk the call never actually completing.
+ */
+async function triggerImageAnalysis(reportId: string) {
+  const url = process.env.IMAGE_MATCHING_SERVICE_URL
+  const secret = process.env.IMAGE_MATCHING_SERVICE_SECRET
+  if (!url || !secret) return // not configured — treated as "feature not enabled", not an error
+
+  try {
+    await fetch(`${url}/internal/reports/${reportId}/analyze`, {
+      method: 'POST',
+      headers: { 'X-Internal-Secret': secret },
+      signal: AbortSignal.timeout(10_000),
+    })
+  } catch (err) {
+    console.error('Image matching service call failed (non-fatal):', err)
+  }
+}
+
 async function requireModerator() {
   const supabase = await createClient()
   const {
@@ -75,6 +102,8 @@ export async function approveReport(formData: FormData) {
     .select()
     .single()
   if (accountError) throw new Error(accountError.message)
+
+  await triggerImageAnalysis(reportId)
 
   revalidatePath('/moderate')
 }

@@ -82,6 +82,28 @@ async function getLinkedAccounts(
   return [...seen.values()]
 }
 
+/**
+ * The photo-based counterpart to getLinkedAccounts above: same idea (a
+ * rebranded scam page usually keeps something it didn't bother changing),
+ * different signal (a reused product photo instead of a reused till/
+ * phone number). Unlike identifiers, evidence itself is never publicly
+ * selectable, so this can't be a plain query the way getLinkedAccounts
+ * is — it goes through get_photo_linked_accounts, a security-definer
+ * function added in 0005_photo_matches.sql that does the necessary join
+ * without ever exposing a raw evidence row to this (possibly anonymous)
+ * request. Populated only once the Python image-matching service
+ * (services/image-matching) has analyzed a report — see
+ * src/app/moderate/actions.ts, which triggers that on approval.
+ */
+async function getPhotoLinkedAccounts(supabase: SupabaseClient, accountId: string): Promise<Account[]> {
+  const { data, error } = await supabase.rpc('get_photo_linked_accounts', { account_id_in: accountId })
+  if (error) {
+    console.error('Failed to load photo-linked accounts:', error.message)
+    return []
+  }
+  return data as Account[]
+}
+
 function incrementViewCount(supabase: SupabaseClient, accountId: string) {
   // Fire-and-forget: a failed view count must never block the page from
   // rendering, so its error is logged rather than thrown.
@@ -105,7 +127,15 @@ export default async function AccountPage({
   const reports = await getApprovedReports(supabase, account.id)
   const totalLost = reports.reduce((sum, r) => sum + (r.amount_lost ?? 0), 0)
   const allIdentifierValues = [...new Set(reports.flatMap((r) => r.identifiers.map((i) => i.normalized_value)))]
-  const linkedAccounts = await getLinkedAccounts(supabase, allIdentifierValues, account.id)
+  const [identifierLinkedAccounts, photoLinkedAccounts] = await Promise.all([
+    getLinkedAccounts(supabase, allIdentifierValues, account.id),
+    getPhotoLinkedAccounts(supabase, account.id),
+  ])
+  // Merged rather than shown as two separate sections — the distinction
+  // between "same till number" and "same product photo" matters for our
+  // own reasoning, but to a visitor deciding whether to pay, "this is
+  // connected to N other reported accounts" is the one fact that matters.
+  const linkedAccounts = [...new Map([...identifierLinkedAccounts, ...photoLinkedAccounts].map((a) => [a.id, a])).values()]
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -129,8 +159,8 @@ export default async function AccountPage({
         {linkedAccounts.length > 0 && (
           <div className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4">
             <p className="font-medium text-amber-900">
-              A payment or contact number used here also appears on {linkedAccounts.length} other reported
-              account{linkedAccounts.length === 1 ? '' : 's'}:
+              A payment/contact detail or a product photo used here also appears on {linkedAccounts.length} other
+              reported account{linkedAccounts.length === 1 ? '' : 's'}:
             </p>
             <ul className="mt-2 space-y-1">
               {linkedAccounts.map((linked) => (
