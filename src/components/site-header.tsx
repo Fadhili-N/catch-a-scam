@@ -20,7 +20,10 @@ export async function SiteHeader() {
         </Link>
 
         {user ? (
-          <div className="flex items-center gap-3 text-sm text-zinc-600">
+          <div className="flex items-center gap-4 text-sm text-zinc-600">
+            <Link href="/report" className="font-medium text-zinc-900 hover:underline">
+              Report a scam
+            </Link>
             <span>{user.email}</span>
             <form action="/auth/logout" method="post">
               <button type="submit" className="text-zinc-900 underline">
@@ -30,6 +33,9 @@ export async function SiteHeader() {
           </div>
         ) : (
           <div className="flex items-center gap-4 text-sm">
+            <Link href="/report" className="font-medium text-zinc-900 hover:underline">
+              Report a scam
+            </Link>
             <Link href="/login" className="text-zinc-600 hover:underline">
               Log in
             </Link>

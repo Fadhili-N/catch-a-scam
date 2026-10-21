@@ -49,6 +49,13 @@ export default async function Home() {
           </button>
         </form>
 
+        <p className="mt-4 text-sm text-zinc-600">
+          Already been scammed?{' '}
+          <Link href="/report" className="font-medium text-zinc-900 underline">
+            File a report
+          </Link>
+        </p>
+
         <section className="mt-12">
           <h2 className="text-lg font-semibold text-zinc-900">Recently reported</h2>
           {reports.length === 0 ? (
