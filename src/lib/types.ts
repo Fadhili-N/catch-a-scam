@@ -5,6 +5,14 @@
 export type Platform = 'tiktok' | 'instagram' | 'whatsapp' | 'facebook' | 'other'
 export type ReportStatus = 'pending' | 'approved' | 'rejected'
 export type IdentifierType = 'phone' | 'whatsapp' | 'till' | 'paybill' | 'bank_account' | 'mpesa_name'
+export type UserRole = 'user' | 'moderator' | 'admin'
+
+export interface Profile {
+  id: string
+  display_name: string | null
+  role: UserRole
+  created_at: string
+}
 
 export interface Account {
   id: string
@@ -38,5 +46,14 @@ export interface Identifier {
   type: IdentifierType
   raw_value: string
   normalized_value: string
+  created_at: string
+}
+
+export interface Evidence {
+  id: string
+  report_id: string
+  storage_path: string
+  reporter_confirmed_redacted: boolean
+  perceptual_hash: string | null
   created_at: string
 }

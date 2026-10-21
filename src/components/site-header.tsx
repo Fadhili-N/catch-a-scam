@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { getProfile, isModerator } from '@/lib/auth'
 
 /**
  * A Server Component, not a Client Component: it reads the session
@@ -11,6 +12,7 @@ export async function SiteHeader() {
   const supabase = await createClient()
   const { data } = await supabase.auth.getUser()
   const user = data.user
+  const profile = user ? await getProfile(supabase, user.id) : null
 
   return (
     <header className="border-b border-zinc-200 bg-white">
@@ -21,6 +23,11 @@ export async function SiteHeader() {
 
         {user ? (
           <div className="flex items-center gap-4 text-sm text-zinc-600">
+            {isModerator(profile) && (
+              <Link href="/moderate" className="font-medium text-zinc-900 hover:underline">
+                Moderate
+              </Link>
+            )}
             <Link href="/report" className="font-medium text-zinc-900 hover:underline">
               Report a scam
             </Link>
