@@ -1,4 +1,5 @@
 import type { IdentifierType, Platform } from '@/lib/types'
+import { PLATFORM_LABELS } from '@/lib/format'
 
 export interface IdentifierRow {
   id: string
@@ -25,13 +26,7 @@ export interface ReportFormState {
   evidence: EvidenceItem[]
 }
 
-export const PLATFORM_LABELS: Record<Platform, string> = {
-  tiktok: 'TikTok',
-  instagram: 'Instagram',
-  whatsapp: 'WhatsApp',
-  facebook: 'Facebook',
-  other: 'Other',
-}
+export { PLATFORM_LABELS }
 
 export function newIdentifierRow(): IdentifierRow {
   return { id: crypto.randomUUID(), type: 'phone', value: '' }

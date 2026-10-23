@@ -59,14 +59,29 @@ The app runs at http://localhost:3000.
 | `npm run build` | Produce a production build (also type-checks) |
 | `npm run start` | Serve a production build |
 | `npm run lint` | Run ESLint |
+| `npm run seed` / `npm run unseed` | Insert/remove example approved reports |
+| `npm run promote -- <email>` | Make a signed-up user a moderator |
+
+The image-matching service (`services/image-matching`) has its own README
+covering its setup and tests.
+
+## Deploying
+
+See [DEPLOY.md](./DEPLOY.md) — two separate services (Next.js on Vercel,
+the Python service on Render/Fly.io), with the exact steps for each.
 
 ## Project status
 
-Under active development. See the roadmap in project notes; currently at
-**Phase 0 — foundations**.
+All seven planned phases are built: foundations, schema + RLS, public
+read path, auth, submit-a-report, moderation, and the photo-matching
+service, plus this polish pass (SEO metadata, legal pages, analytics).
+Not yet deployed anywhere public — see DEPLOY.md for what's left before
+launch, chiefly creating the hosting accounts themselves.
 
 ## Legal
 
 Reports are user-submitted allegations, not findings of fact. The project
-operates a published takedown and right-of-reply process. Personal data is
-handled in line with Kenya's Data Protection Act, 2019.
+operates a published [takedown and right-of-reply process](src/app/takedown/page.tsx).
+Personal data is handled in line with Kenya's Data Protection Act, 2019 —
+see [the privacy policy](src/app/privacy/page.tsx). These are a first
+draft; worth a real lawyer's review before the site has real scale.

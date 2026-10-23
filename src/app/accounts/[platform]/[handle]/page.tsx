@@ -1,19 +1,25 @@
+import { cache } from 'react'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import type { Metadata } from 'next'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
-import { formatMoney, formatDate, IDENTIFIER_LABELS } from '@/lib/format'
+import { formatMoney, formatDate, IDENTIFIER_LABELS, PLATFORM_LABELS } from '@/lib/format'
 import type { Account, Identifier, Report } from '@/lib/types'
 
 export const revalidate = 30
 
 type ReportWithIdentifiers = Report & { identifiers: Identifier[] }
 
-async function getAccount(
-  supabase: SupabaseClient,
-  platform: string,
-  handle: string
-): Promise<Account | null> {
+// Wrapped in React's cache() so generateMetadata (below) and the page
+// component itself — which Next.js calls separately for the same
+// request — share one database call instead of two. This only works
+// because the function creates its own Supabase client internally rather
+// than taking one as a parameter: cache() keys on its arguments by
+// identity, and two separate createClient() calls are two different
+// object references even though they behave identically.
+const getAccount = cache(async (platform: string, handle: string): Promise<Account | null> => {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('accounts')
     .select('*')
@@ -27,6 +33,37 @@ async function getAccount(
     return null
   }
   return data
+})
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ platform: string; handle: string }>
+}): Promise<Metadata> {
+  const { platform, handle } = await params
+  const account = await getAccount(platform, handle)
+
+  if (!account) {
+    return { title: 'Account not found' }
+  }
+
+  // The root layout's title template (%s — Catch a Scam) only applies to
+  // the <title> tag itself, not to Open Graph/Twitter fields — those need
+  // the site name added explicitly, or a shared link preview on WhatsApp
+  // would show just the bare handle with no indication of what site it's from.
+  const title = `@${account.handle} (${PLATFORM_LABELS[account.platform] ?? account.platform})`
+  const socialTitle = `${title} — Catch a Scam`
+  const description = `Reports filed against @${account.handle} on ${PLATFORM_LABELS[account.platform] ?? account.platform} — check before you pay.`
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  const url = `${siteUrl}/accounts/${account.platform}/${account.handle}`
+
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: { title: socialTitle, description, url, type: 'profile' },
+    twitter: { card: 'summary', title: socialTitle, description },
+  }
 }
 
 async function getApprovedReports(
@@ -119,7 +156,7 @@ export default async function AccountPage({
 }) {
   const { platform, handle } = await params
   const supabase = await createClient()
-  const account = await getAccount(supabase, platform, handle)
+  const account = await getAccount(platform, handle)
   if (!account) notFound()
 
   incrementViewCount(supabase, account.id)

@@ -1,4 +1,4 @@
-import type { IdentifierType } from '@/lib/types'
+import type { IdentifierType, Platform } from '@/lib/types'
 
 export function formatMoney(amount: number | null, currency: string): string {
   if (amount === null) return 'amount not stated'
@@ -25,4 +25,12 @@ export const IDENTIFIER_LABELS: Record<IdentifierType, string> = {
   paybill: 'Paybill number',
   bank_account: 'Bank account',
   mpesa_name: 'M-Pesa registered name',
+}
+
+export const PLATFORM_LABELS: Record<Platform, string> = {
+  tiktok: 'TikTok',
+  instagram: 'Instagram',
+  whatsapp: 'WhatsApp',
+  facebook: 'Facebook',
+  other: 'Other',
 }
