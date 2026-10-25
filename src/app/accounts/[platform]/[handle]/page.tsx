@@ -4,8 +4,8 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
-import { formatMoney, formatDate, IDENTIFIER_LABELS, PLATFORM_LABELS } from '@/lib/format'
-import type { Account, Identifier, Report } from '@/lib/types'
+import { formatMoney, formatDate, IDENTIFIER_LABELS, PLATFORM_LABELS, CATEGORY_LABELS } from '@/lib/format'
+import type { Account, Advertiser, Identifier, Report } from '@/lib/types'
 
 export const revalidate = 30
 
@@ -141,6 +141,24 @@ async function getPhotoLinkedAccounts(supabase: SupabaseClient, accountId: strin
   return data as Account[]
 }
 
+/**
+ * The actual monetisation mechanism: a visitor on a scam account's page
+ * is looking for exactly the product category that account claimed to
+ * sell — the best possible moment to show a paying, legit seller in the
+ * same category. Relies entirely on the public RLS policy in
+ * 0007_advertisers.sql ("active... within their date range") to filter
+ * correctly for an anonymous visitor; this function doesn't duplicate
+ * that logic, it just asks for the category and takes whatever comes back.
+ */
+async function getMatchingAdvertisers(supabase: SupabaseClient, category: string): Promise<Advertiser[]> {
+  const { data, error } = await supabase.from('advertisers').select('*').eq('category', category).limit(3)
+  if (error) {
+    console.error('Failed to load advertisers:', error.message)
+    return []
+  }
+  return data
+}
+
 function incrementViewCount(supabase: SupabaseClient, accountId: string) {
   // Fire-and-forget: a failed view count must never block the page from
   // rendering, so its error is logged rather than thrown.
@@ -173,6 +191,12 @@ export default async function AccountPage({
   // own reasoning, but to a visitor deciding whether to pay, "this is
   // connected to N other reported accounts" is the one fact that matters.
   const linkedAccounts = [...new Map([...identifierLinkedAccounts, ...photoLinkedAccounts].map((a) => [a.id, a])).values()]
+
+  // The most recent report's category stands in for "what this account
+  // sells" — good enough for v1; an account whose reports span several
+  // categories just matches on whichever was reported most recently.
+  const category = reports[0]?.category
+  const matchingAdvertisers = category ? await getMatchingAdvertisers(supabase, category) : []
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -212,25 +236,76 @@ export default async function AccountPage({
         )}
 
         <section className="mt-8 space-y-4">
-          {reports.map((report) => (
-            <article key={report.id} className="rounded-lg border border-zinc-200 bg-white p-4">
-              <p className="font-medium text-zinc-900">{report.promised_item ?? 'Item not stated'}</p>
-              <p className="mt-1 text-sm text-zinc-600">{report.narrative}</p>
-              <p className="mt-2 text-sm text-zinc-500">
-                {formatMoney(report.amount_lost, report.currency)} · {formatDate(report.incident_date)}
-              </p>
-              {report.identifiers.length > 0 && (
-                <ul className="mt-2 flex flex-wrap gap-2">
-                  {report.identifiers.map((id) => (
-                    <li key={id.id} className="rounded bg-zinc-100 px-2 py-1 text-xs text-zinc-600">
-                      {IDENTIFIER_LABELS[id.type] ?? id.type}: {id.raw_value}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </article>
-          ))}
+          {reports.map((report) => {
+            const photoUrl = report.product_photo_path
+              ? supabase.storage.from('product-photos').getPublicUrl(report.product_photo_path).data.publicUrl
+              : null
+            return (
+              <article key={report.id} className="rounded-lg border border-zinc-200 bg-white p-4">
+                <div className="flex gap-3">
+                  {photoUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element -- a public Supabase Storage URL, not worth Next's image pipeline here
+                    <img
+                      src={photoUrl}
+                      alt={`What @${account.handle} was selling`}
+                      className="h-20 w-20 flex-shrink-0 rounded object-cover"
+                    />
+                  )}
+                  <div>
+                    <p className="font-medium text-zinc-900">{report.promised_item ?? 'Item not stated'}</p>
+                    <p className="mt-1 text-sm text-zinc-600">{report.narrative}</p>
+                    <p className="mt-2 text-sm text-zinc-500">
+                      {formatMoney(report.amount_lost, report.currency)} · {formatDate(report.incident_date)}
+                    </p>
+                  </div>
+                </div>
+                {report.identifiers.length > 0 && (
+                  <ul className="mt-2 flex flex-wrap gap-2">
+                    {report.identifiers.map((id) => (
+                      <li key={id.id} className="rounded bg-zinc-100 px-2 py-1 text-xs text-zinc-600">
+                        {IDENTIFIER_LABELS[id.type] ?? id.type}: {id.raw_value}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </article>
+            )
+          })}
         </section>
+
+        {matchingAdvertisers.length > 0 && (
+          <section className="mt-8">
+            <h2 className="text-sm font-semibold text-zinc-900">
+              Legit {CATEGORY_LABELS[category!].toLowerCase()} sellers
+            </h2>
+            <div className="mt-3 space-y-3">
+              {matchingAdvertisers.map((advertiser) => {
+                const logoUrl = advertiser.logo_path
+                  ? supabase.storage.from('advertiser-logos').getPublicUrl(advertiser.logo_path).data.publicUrl
+                  : null
+                return (
+                  <a
+                    key={advertiser.id}
+                    href={advertiser.contact_url}
+                    target="_blank"
+                    rel="noreferrer sponsored"
+                    className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 hover:border-emerald-300"
+                  >
+                    {logoUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element -- a public Supabase Storage URL
+                      <img src={logoUrl} alt={advertiser.business_name} className="h-12 w-12 rounded object-cover" />
+                    )}
+                    <div>
+                      <p className="font-medium text-emerald-900">{advertiser.business_name}</p>
+                      <p className="text-sm text-emerald-800">{advertiser.description}</p>
+                    </div>
+                  </a>
+                )
+              })}
+            </div>
+            <p className="mt-2 text-xs text-zinc-400">Sponsored — these businesses paid for this placement.</p>
+          </section>
+        )}
 
         <p className="mt-10 text-xs text-zinc-400">
           Reports here are user submissions, not confirmed findings of fact.

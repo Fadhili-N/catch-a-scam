@@ -7,6 +7,10 @@ import { z } from 'zod'
 // rather than forced in here.
 export const reportDetailsSchema = z.object({
   platform: z.enum(['tiktok', 'instagram', 'whatsapp', 'facebook', 'other']),
+  // Powers the "legit sellers like this" sponsored placement on the
+  // account page (0007_advertisers.sql) — matching an advertiser's own
+  // category against this, not against free-text promisedItem.
+  category: z.enum(['shoes', 'clothing', 'electronics', 'beauty', 'accessories', 'other']),
   handle: z
     .string()
     .trim()

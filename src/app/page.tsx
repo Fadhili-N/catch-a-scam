@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { formatMoney, formatDate } from '@/lib/format'
 import type { Account, Report } from '@/lib/types'
@@ -9,8 +10,7 @@ export const revalidate = 30
 
 type ReportWithAccount = Report & { accounts: Account }
 
-async function getRecentReports(): Promise<ReportWithAccount[]> {
-  const supabase = await createClient()
+async function getRecentReports(supabase: SupabaseClient): Promise<ReportWithAccount[]> {
   const { data, error } = await supabase
     .from('reports')
     .select('*, accounts(*)')
@@ -26,12 +26,13 @@ async function getRecentReports(): Promise<ReportWithAccount[]> {
 }
 
 export default async function Home() {
-  const reports = await getRecentReports()
+  const supabase = await createClient()
+  const reports = await getRecentReports(supabase)
 
   return (
     <div className="min-h-screen bg-zinc-50">
       <main className="mx-auto max-w-2xl px-4 py-16">
-        <h1 className="text-3xl font-bold text-zinc-900">Catch a Scam</h1>
+        <h1 className="text-5xl font-bold italic text-zinc-900">Catch a Scam</h1>
         <p className="mt-2 text-zinc-600">
           Check a TikTok or Instagram seller before you pay. Free to search — no account needed.
         </p>
@@ -62,23 +63,38 @@ export default async function Home() {
             <p className="mt-3 text-zinc-500">No reports yet.</p>
           ) : (
             <ul className="mt-4 space-y-3">
-              {reports.map((report) => (
-                <li key={report.id} className="rounded-lg border border-zinc-200 bg-white p-4">
-                  <Link
-                    href={`/accounts/${report.accounts.platform}/${report.accounts.handle}`}
-                    className="font-medium text-zinc-900 hover:underline"
-                  >
-                    @{report.accounts.handle}
-                    <span className="ml-2 text-xs font-normal uppercase text-zinc-400">
-                      {report.accounts.platform}
-                    </span>
-                  </Link>
-                  <p className="mt-1 text-sm text-zinc-600">{report.promised_item}</p>
-                  <p className="mt-1 text-sm text-zinc-500">
-                    {formatMoney(report.amount_lost, report.currency)} · {formatDate(report.incident_date)}
-                  </p>
-                </li>
-              ))}
+              {reports.map((report) => {
+                const photoUrl = report.product_photo_path
+                  ? supabase.storage.from('product-photos').getPublicUrl(report.product_photo_path).data.publicUrl
+                  : null
+                return (
+                  <li key={report.id} className="flex gap-3 rounded-lg border border-zinc-200 bg-white p-4">
+                    {photoUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element -- a public Supabase Storage URL, not worth Next's image pipeline for a small thumbnail
+                      <img
+                        src={photoUrl}
+                        alt={`What ${report.accounts.handle} was selling`}
+                        className="h-16 w-16 flex-shrink-0 rounded object-cover"
+                      />
+                    )}
+                    <div>
+                      <Link
+                        href={`/accounts/${report.accounts.platform}/${report.accounts.handle}`}
+                        className="font-medium text-zinc-900 hover:underline"
+                      >
+                        @{report.accounts.handle}
+                        <span className="ml-2 text-xs font-normal uppercase text-zinc-400">
+                          {report.accounts.platform}
+                        </span>
+                      </Link>
+                      <p className="mt-1 text-sm text-zinc-600">{report.promised_item}</p>
+                      <p className="mt-1 text-sm text-zinc-500">
+                        {formatMoney(report.amount_lost, report.currency)} · {formatDate(report.incident_date)}
+                      </p>
+                    </div>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </section>

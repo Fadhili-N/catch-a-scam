@@ -1,14 +1,22 @@
-import type { Platform } from '@/lib/types'
-import { PLATFORM_LABELS } from './types'
+'use client'
+
+import { useState } from 'react'
+import type { Category, Platform } from '@/lib/types'
+import { CATEGORY_LABELS, PLATFORM_LABELS } from './types'
+import { EvidenceThumbnail } from './evidence-thumbnail'
+
+const MAX_PRODUCT_PHOTO_BYTES = 8 * 1024 * 1024
 
 interface Fields {
   platform: Platform
   handle: string
   displayName: string
+  category: Category
   promisedItem: string
   amountLost: string
   incidentDate: string
   narrative: string
+  productPhoto: File | null
 }
 
 interface StepDetailsProps {
@@ -18,6 +26,25 @@ interface StepDetailsProps {
 }
 
 export function StepDetails({ value, onChange, errors }: StepDetailsProps) {
+  const [photoPickError, setPhotoPickError] = useState<string | null>(null)
+
+  function handlePhotoPicked(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      setPhotoPickError("That isn't an image.")
+      return
+    }
+    if (file.size > MAX_PRODUCT_PHOTO_BYTES) {
+      setPhotoPickError('That image is too large (max 8MB).')
+      return
+    }
+    setPhotoPickError(null)
+    onChange({ productPhoto: file })
+  }
+
   return (
     <div className="space-y-4">
       <div>
@@ -76,6 +103,40 @@ export function StepDetails({ value, onChange, errors }: StepDetailsProps) {
           className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
         />
         {errors.promisedItem && <p className="mt-1 text-sm text-red-600">{errors.promisedItem}</p>}
+      </div>
+
+      <div>
+        <label htmlFor="category" className="block text-sm font-medium text-zinc-700">
+          Category
+        </label>
+        <select
+          id="category"
+          value={value.category}
+          onChange={(e) => onChange({ category: e.target.value as Category })}
+          className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+        >
+          {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-zinc-700">Product photo (optional)</label>
+        <p className="mt-1 text-xs text-zinc-500">
+          A screenshot of <strong>their own post</strong> for this item — not your private chat or payment.
+          This one is shown publicly, so it needs no redaction, but make sure it&rsquo;s just the product.
+        </p>
+        {value.productPhoto ? (
+          <div className="mt-2">
+            <EvidenceThumbnail blob={value.productPhoto} onRemove={() => onChange({ productPhoto: null })} />
+          </div>
+        ) : (
+          <input type="file" accept="image/*" onChange={handlePhotoPicked} className="mt-2 text-sm" />
+        )}
+        {photoPickError && <p className="mt-1 text-sm text-red-600">{photoPickError}</p>}
       </div>
 
       <div className="grid grid-cols-2 gap-4">

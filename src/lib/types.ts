@@ -6,6 +6,7 @@ export type Platform = 'tiktok' | 'instagram' | 'whatsapp' | 'facebook' | 'other
 export type ReportStatus = 'pending' | 'approved' | 'rejected'
 export type IdentifierType = 'phone' | 'whatsapp' | 'till' | 'paybill' | 'bank_account' | 'mpesa_name'
 export type UserRole = 'user' | 'moderator' | 'admin'
+export type Category = 'shoes' | 'clothing' | 'electronics' | 'beauty' | 'accessories' | 'other'
 
 export interface Profile {
   id: string
@@ -37,6 +38,23 @@ export interface Report {
   moderator_id: string | null
   moderator_note: string | null
   moderated_at: string | null
+  created_at: string
+  // Public, unlike everything in `evidence` — see 0006_product_photo.sql.
+  // A plain storage path in the public "product-photos" bucket, or null.
+  product_photo_path: string | null
+  category: Category
+}
+
+export interface Advertiser {
+  id: string
+  business_name: string
+  category: Category
+  description: string
+  contact_url: string
+  logo_path: string | null
+  is_active: boolean
+  starts_at: string | null
+  ends_at: string | null
   created_at: string
 }
 

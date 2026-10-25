@@ -1,4 +1,4 @@
-import type { IdentifierType, Platform } from '@/lib/types'
+import type { Category, IdentifierType, Platform } from '@/lib/types'
 
 export function formatMoney(amount: number | null, currency: string): string {
   if (amount === null) return 'amount not stated'
@@ -32,5 +32,14 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
   instagram: 'Instagram',
   whatsapp: 'WhatsApp',
   facebook: 'Facebook',
+  other: 'Other',
+}
+
+export const CATEGORY_LABELS: Record<Category, string> = {
+  shoes: 'Shoes',
+  clothing: 'Clothing',
+  electronics: 'Electronics',
+  beauty: 'Beauty',
+  accessories: 'Accessories',
   other: 'Other',
 }

@@ -16,12 +16,14 @@ const initialState: ReportFormState = {
   platform: 'tiktok',
   handle: '',
   displayName: '',
+  category: 'other',
   promisedItem: '',
   amountLost: '',
   incidentDate: '',
   narrative: '',
   identifiers: [newIdentifierRow()],
   evidence: [],
+  productPhoto: null,
 }
 
 /**
@@ -69,7 +71,7 @@ export function ReportForm() {
   function validateStep2(): Record<string, string> {
     const found: Record<string, string> = {}
     for (const row of state.identifiers) {
-      const result = normalizeIdentifier(row.type, row.value)
+      const result = normalizeIdentifier(row.type, row.value, row.countryCode)
       if (!result.ok) found[row.id] = result.error ?? 'Invalid value.'
     }
     return found
@@ -126,6 +128,7 @@ export function ReportForm() {
           currency: 'KES',
           incident_date: state.incidentDate || null,
           promised_item: parsed.promisedItem,
+          category: parsed.category,
           narrative: parsed.narrative,
         })
         .select()
@@ -133,7 +136,7 @@ export function ReportForm() {
       if (reportError) throw new Error(reportError.message)
 
       const identifierRows = state.identifiers.map((row) => {
-        const normalized = normalizeIdentifier(row.type, row.value)
+        const normalized = normalizeIdentifier(row.type, row.value, row.countryCode)
         return {
           report_id: report.id,
           type: row.type,
@@ -158,6 +161,25 @@ export function ReportForm() {
           reporter_confirmed_redacted: true,
         })
         if (evidenceError) throw new Error(evidenceError.message)
+      }
+
+      // Public, unlike evidence above — uploaded to a different, public
+      // bucket (0006_product_photo.sql), and never through RedactCanvas:
+      // it's a screenshot of the seller's own public post, not proof that
+      // needs the reporter's personal details blacked out first.
+      if (state.productPhoto) {
+        const extension = state.productPhoto.type === 'image/png' ? 'png' : 'jpg'
+        const path = `${report.id}/${crypto.randomUUID()}.${extension}`
+        const { error: uploadError } = await supabase.storage
+          .from('product-photos')
+          .upload(path, state.productPhoto, { contentType: state.productPhoto.type })
+        if (uploadError) throw new Error(uploadError.message)
+
+        const { error: photoPathError } = await supabase.rpc('set_report_product_photo', {
+          report_id_in: report.id,
+          path_in: path,
+        })
+        if (photoPathError) throw new Error(photoPathError.message)
       }
 
       setDone(true)

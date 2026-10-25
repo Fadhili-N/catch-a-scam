@@ -87,7 +87,12 @@ export default async function ModeratePage({
   return (
     <div className="min-h-screen bg-zinc-50">
       <main className="mx-auto max-w-2xl px-4 py-16">
-        <h1 className="text-2xl font-bold text-zinc-900">Moderation queue</h1>
+        <div className="flex items-baseline justify-between">
+          <h1 className="text-2xl font-bold text-zinc-900">Moderation queue</h1>
+          <Link href="/moderate/advertisers" className="text-sm text-zinc-500 hover:underline">
+            Advertisers →
+          </Link>
+        </div>
 
         <nav className="mt-4 flex gap-4 border-b border-zinc-200 text-sm">
           {TABS.map((tab) => (

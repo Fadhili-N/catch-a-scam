@@ -1,8 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
-import { getProfile, isModerator } from '@/lib/auth'
+import { requireModerator } from '@/lib/auth'
 
 /**
  * Server Actions, not client-side Supabase calls like report-form/index.tsx
@@ -54,19 +53,6 @@ async function triggerImageAnalysis(reportId: string) {
   } catch (err) {
     console.error('Image matching service call failed (non-fatal):', err)
   }
-}
-
-async function requireModerator() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not signed in.')
-
-  const profile = await getProfile(supabase, user.id)
-  if (!isModerator(profile)) throw new Error('Not authorized.')
-
-  return { supabase, user }
 }
 
 export async function approveReport(formData: FormData) {

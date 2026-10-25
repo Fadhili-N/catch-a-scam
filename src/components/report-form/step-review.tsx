@@ -1,5 +1,5 @@
 import { IDENTIFIER_LABELS } from '@/lib/format'
-import { PLATFORM_LABELS, type ReportFormState } from './types'
+import { CATEGORY_LABELS, PLATFORM_LABELS, type ReportFormState } from './types'
 
 interface StepReviewProps {
   value: ReportFormState
@@ -20,7 +20,9 @@ export function StepReview({ value, submitting, submitError, onSubmit }: StepRev
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-zinc-500">Item</dt>
-          <dd className="text-right text-zinc-900">{value.promisedItem}</dd>
+          <dd className="text-right text-zinc-900">
+            {value.promisedItem} <span className="text-zinc-400">({CATEGORY_LABELS[value.category]})</span>
+          </dd>
         </div>
         {value.amountLost && (
           <div className="flex justify-between gap-4">
