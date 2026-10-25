@@ -1,6 +1,22 @@
 @import "tailwindcss";
 
+/*
+ * Catch a Scam is designed as a light-only app — every page sets its own
+ * explicit Tailwind colors (bg-zinc-50, bg-white, text-zinc-900, etc.),
+ * never the dark-mode-aware CSS variables create-next-app scaffolds by
+ * default. That leftover scaffolding used to auto-switch --foreground to
+ * a near-white value whenever a visitor's OS was set to dark mode — which
+ * nothing else in the app was built to match, so inputs ended up with
+ * barely-visible light-gray text on a light background. Found on a real
+ * phone with dark mode on, not in review.
+ *
+ * color-scheme: light below is the actual fix for native form controls
+ * specifically (inputs, selects, textareas) — it tells the browser not
+ * to apply ITS OWN dark-mode rendering to them at all, which plain CSS
+ * color rules on the page don't fully control.
+ */
 :root {
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #171717;
 }
@@ -10,13 +26,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
