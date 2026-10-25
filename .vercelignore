@@ -1,0 +1,6 @@
+# The Python image-matching service is a separate app, deployed on its
+# own (Render/Fly.io — see DEPLOY.md), never on Vercel. Without this,
+# Vercel's import scanner sees requirements.txt and app/main.py in here
+# and treats the repo as a multi-service monorepo needing its own
+# service-by-service configuration, which this project doesn't want or need.
+services/
